@@ -149,6 +149,24 @@ export const apiClient = {
     }
   },
 
+  changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    const res = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (isBrowser) {
+        localStorage.removeItem("pla_token");
+        localStorage.removeItem("pla_username");
+      }
+      return data;
+    }
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to change password.");
+  },
+
   // ─── Sources ────────────────────────────────────────────────────────────────
 
   getSources: async (): Promise<Source[]> => {

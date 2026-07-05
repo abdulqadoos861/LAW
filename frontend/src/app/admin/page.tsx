@@ -24,9 +24,49 @@ export default function AdminDashboard() {
   const [newEmail,     setNewEmail]     = useState('');
   const [newName,      setNewName]      = useState('');
   const [updatesCount, setUpdatesCount] = useState(0);
-  const [activeTab,    setActiveTab]    = useState<'dashboard' | 'crawler' | 'sources' | 'receivers'>('dashboard');
+  const [activeTab,    setActiveTab]    = useState<'dashboard' | 'crawler' | 'sources' | 'receivers' | 'profile'>('dashboard');
   const [todayUpdates, setTodayUpdates] = useState<LawUpdate[]>([]);
   const [loadingToday, setLoadingToday] = useState(false);
+
+  // Profile settings
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [changingPass, setChangingPass] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError('');
+    setProfileSuccess('');
+    
+    if (newPass !== confirmPass) {
+      setProfileError("New passwords do not match.");
+      return;
+    }
+    if (newPass.length < 6) {
+      setProfileError("New password must be at least 6 characters.");
+      return;
+    }
+
+    setChangingPass(true);
+    try {
+      const res = await apiClient.changePassword(currentPass, newPass);
+      setProfileSuccess(res.message);
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+      
+      setTimeout(() => {
+        setIsAuthenticated(false);
+      }, 2000);
+    } catch (err: any) {
+      setProfileError(err.message || "Failed to change password.");
+    } finally {
+      setChangingPass(false);
+    }
+  };
 
   const fetchTodayUpdates = async () => {
     setLoadingToday(true);
@@ -309,15 +349,15 @@ export default function AdminDashboard() {
             background: radial-gradient(circle at center, hsl(145, 30%, 8%) 0%, hsl(145, 30%, 3%) 100%);
           }
           .login-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid rgba(197, 160, 89, 0.20);
             border-radius: var(--radius-lg);
-            padding: 40px;
+            padding: 44px 40px;
             width: 100%;
             max-width: 420px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
           }
           .login-header {
             text-align: center;
@@ -325,35 +365,56 @@ export default function AdminDashboard() {
           }
           .login-header h2 {
             font-family: var(--font-title);
-            font-size: 1.4rem;
-            font-weight: 700;
+            font-size: 1.45rem;
+            font-weight: 800;
             color: var(--text-primary);
-            margin: 12px 0 4px;
+            margin: 14px 0 4px;
+            letter-spacing: -0.02em;
           }
           .login-header p {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--accent-gold);
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
+            font-weight: 600;
           }
           .login-error-banner {
             display: flex;
-            background: rgba(211, 47, 47, 0.15);
-            border: 1px solid rgba(211, 47, 47, 0.3);
+            background: rgba(211, 47, 47, 0.12);
+            border: 1px solid rgba(211, 47, 47, 0.25);
             border-radius: var(--radius-md);
             padding: 12px 16px;
             margin-bottom: 20px;
             color: #ff8a80;
-            font-size: 0.875rem;
-            line-height: 1.4;
+            font-size: 0.85rem;
+            line-height: 1.45;
           }
           .login-form {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 18px;
+          }
+          .login-form label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+          .login-form .input-field {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            transition: all var(--transition-fast);
+          }
+          .login-form .input-field:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 2px var(--accent-gold-glow);
           }
           .login-btn {
-            background: var(--accent-gold);
+            background: linear-gradient(135deg, var(--accent-gold) 0%, hsl(42, 60%, 40%) 100%);
             color: var(--bg-main);
             border: none;
             border-radius: var(--radius-md);
@@ -361,18 +422,26 @@ export default function AdminDashboard() {
             font-weight: 700;
             cursor: pointer;
             transition: all var(--transition-fast);
-            margin-top: 8px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           }
           .login-btn:hover:not(:disabled) {
-            box-shadow: 0 4px 14px var(--accent-gold-glow);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--accent-gold-glow);
+          }
+          .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
           }
           .back-feed-btn {
             text-align: center;
             font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-top: 12px;
+            color: var(--text-muted);
+            margin-top: 8px;
             text-decoration: none;
             transition: color var(--transition-fast);
+            font-weight: 500;
           }
           .back-feed-btn:hover {
             color: var(--text-primary);
@@ -448,7 +517,7 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="admin-tabs">
-          {(['dashboard', 'crawler', 'sources', 'receivers'] as const).map(tab => (
+          {(['dashboard', 'crawler', 'sources', 'receivers', 'profile'] as const).map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
@@ -458,6 +527,7 @@ export default function AdminDashboard() {
               {tab === 'crawler'   && <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>}
               {tab === 'sources'   && <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>}
               {tab === 'receivers' && <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>}
+              {tab === 'profile'   && <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>}
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
@@ -786,6 +856,92 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        {/* ── TAB: Profile ── */}
+        {activeTab === 'profile' && (
+          <div className="tab-panel animate-fade-in">
+            <div className="dashboard-block" style={{ maxWidth: '560px' }}>
+              <div className="block-header">
+                <h3>Profile Settings</h3>
+              </div>
+              <p className="block-description">
+                Manage your administrator login account details and update your password.
+              </p>
+
+              <div className="profile-info-display">
+                <div className="profile-avatar">👤</div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                    {typeof window !== 'undefined' ? localStorage.getItem("pla_username") || 'admin' : 'admin'}
+                  </h4>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--accent-gold)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    System Administrator
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="change-password-form">
+                <h4 style={{ marginBottom: '16px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>Change Password</h4>
+                
+                {profileSuccess && (
+                  <div className="success-banner" style={{ marginBottom: '20px' }}>
+                    <span className="success-icon" style={{ width: '24px', height: '24px', fontSize: '0.9rem' }}>✓</span>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>{profileSuccess}</p>
+                  </div>
+                )}
+                
+                {profileError && (
+                  <div className="login-error-banner" style={{ marginBottom: '20px' }}>
+                    <span style={{ marginRight: '8px' }}>⚠️</span>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>{profileError}</p>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label htmlFor="current-pass-input">Current Password</label>
+                  <input
+                    id="current-pass-input"
+                    type="password"
+                    required
+                    className="input-field"
+                    placeholder="Enter current password"
+                    value={currentPass}
+                    onChange={e => setCurrentPass(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label htmlFor="new-pass-input">New Password</label>
+                  <input
+                    id="new-pass-input"
+                    type="password"
+                    required
+                    className="input-field"
+                    placeholder="Minimum 6 characters"
+                    value={newPass}
+                    onChange={e => setNewPass(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label htmlFor="confirm-pass-input">Confirm New Password</label>
+                  <input
+                    id="confirm-pass-input"
+                    type="password"
+                    required
+                    className="input-field"
+                    placeholder="Re-enter new password"
+                    value={confirmPass}
+                    onChange={e => setConfirmPass(e.target.value)}
+                  />
+                </div>
+
+                <button type="submit" className="btn-primary" disabled={changingPass} style={{ padding: '12px 24px', width: 'auto' }}>
+                  {changingPass ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
 
       <style jsx global>{`
@@ -1102,6 +1258,34 @@ export default function AdminDashboard() {
         
         .update-link-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; color: var(--accent-gold); padding: 5px 10px; border-radius: 4px; border: 1px solid hsla(42, 70%, 55%, 0.2); background: var(--accent-gold-glow); transition: all var(--transition-fast); }
         .update-link-btn:hover { background: var(--accent-gold); color: var(--bg-main); box-shadow: 0 2px 6px var(--accent-gold-glow); }
+
+        /* Profile Styles */
+        .profile-info-display {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 20px;
+          margin-bottom: 28px;
+        }
+        .profile-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: var(--accent-gold-glow);
+          color: var(--accent-gold);
+          border: 1px solid var(--border-focus);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.4rem;
+        }
+        .change-password-form {
+          border-top: 1px solid var(--border);
+          padding-top: 24px;
+        }
       `}</style>
     </div>
   );
