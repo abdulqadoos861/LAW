@@ -13,6 +13,12 @@ interface LogEntry {
 const SCRAPER_TYPES = ['na', 'senate', 'molaw', 'generic', 'punjab', 'sindh'];
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
   const [sources,      setSources]      = useState<Source[]>([]);
   const [admins,       setAdmins]       = useState<Admin[]>([]);
   const [newEmail,     setNewEmail]     = useState('');
@@ -55,6 +61,39 @@ export default function AdminDashboard() {
     setLogs(prev => [...prev, { timestamp: formatTime(), type, message }]);
   };
 
+  // Check session on mount
+  useEffect(() => {
+    async function checkAuth() {
+      const valid = await apiClient.verifySession();
+      setIsAuthenticated(valid);
+    }
+    checkAuth();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoggingIn(true);
+    try {
+      await apiClient.login(loginUsername, loginPassword);
+      setIsAuthenticated(true);
+      addLog('Admin authenticated successfully.', 'success');
+    } catch (err: any) {
+      setLoginError(err.message || 'Incorrect username or password.');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await apiClient.logout();
+    setIsAuthenticated(false);
+    setSources([]);
+    setAdmins([]);
+    setTodayUpdates([]);
+    addLog('Logged out from administrative session.', 'info');
+  };
+
   // Populate initial log entries on client-only (after mount)
   useEffect(() => {
     setLogs([
@@ -65,6 +104,7 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    if (isAuthenticated !== true) return;
     async function loadData() {
       try {
         const [srcList, admList, upData] = await Promise.all([
@@ -83,7 +123,7 @@ export default function AdminDashboard() {
     loadData();
     fetchTodayUpdates();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticated]);
 
   // ─── Crawl ────────────────────────────────────────────────────────────────
   const handleTriggerCrawl = async () => {
@@ -189,6 +229,159 @@ export default function AdminDashboard() {
   const activeSources   = sources.filter(s => s.is_active).length;
   const inactiveSources = sources.length - activeSources;
 
+  if (isAuthenticated === null) {
+    return (
+      <div className="admin-layout" style={{ justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div className="dashboard-loading">
+          <div className="btn-spinner"></div>
+          <span style={{ marginTop: '12px' }}>Verifying admin session...</span>
+        </div>
+        <style jsx global>{`
+          .admin-layout { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-main); color: var(--text-primary); }
+          .dashboard-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+          .btn-spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.15); border-radius: 50%; border-top-color: var(--accent-gold); animation: spin 0.8s linear infinite; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (isAuthenticated === false) {
+    return (
+      <div className="admin-layout login-screen">
+        <div className="login-card animate-fade-in">
+          <div className="login-header">
+            <span className="crest-emoji" style={{ fontSize: '2.5rem' }}>🇵🇰</span>
+            <h2>Pakistan Law Aggregator</h2>
+            <p>Admin Control Panel Login</p>
+          </div>
+          
+          {loginError && (
+            <div className="login-error-banner">
+              <span style={{ marginRight: '8px' }}>⚠️</span>
+              <p>{loginError}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="login-form">
+            <div className="form-group">
+              <label htmlFor="login-username">Username</label>
+              <input
+                id="login-username"
+                type="text"
+                required
+                className="input-field"
+                placeholder="Enter admin username"
+                value={loginUsername}
+                onChange={e => setLoginUsername(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                required
+                className="input-field"
+                placeholder="Enter password"
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+              />
+            </div>
+
+            <button type="submit" className="btn-primary login-btn" disabled={loggingIn}>
+              {loggingIn ? 'Authenticating...' : 'Sign In'}
+            </button>
+            
+            <Link href="/" className="back-feed-btn">
+              Back to Public Feed
+            </Link>
+          </form>
+        </div>
+
+        <style jsx global>{`
+          .admin-layout { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-main); color: var(--text-primary); }
+          .login-screen {
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at center, hsl(145, 30%, 8%) 0%, hsl(145, 30%, 3%) 100%);
+          }
+          .login-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+          }
+          .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+          }
+          .login-header h2 {
+            font-family: var(--font-title);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 12px 0 4px;
+          }
+          .login-header p {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+          }
+          .login-error-banner {
+            display: flex;
+            background: rgba(211, 47, 47, 0.15);
+            border: 1px solid rgba(211, 47, 47, 0.3);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            color: #ff8a80;
+            font-size: 0.875rem;
+            line-height: 1.4;
+          }
+          .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+          }
+          .login-btn {
+            background: var(--accent-gold);
+            color: var(--bg-main);
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-top: 8px;
+          }
+          .login-btn:hover:not(:disabled) {
+            box-shadow: 0 4px 14px var(--accent-gold-glow);
+          }
+          .back-feed-btn {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            text-decoration: none;
+            transition: color var(--transition-fast);
+          }
+          .back-feed-btn:hover {
+            color: var(--text-primary);
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-layout">
 
@@ -225,6 +418,12 @@ export default function AdminDashboard() {
               </svg>
               Public Feed
             </Link>
+            <button onClick={handleLogout} className="back-feed-link logout-btn" style={{ marginLeft: '8px' }}>
+              <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="15" height="15">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </header>
@@ -633,6 +832,7 @@ export default function AdminDashboard() {
           border-radius: var(--radius-md);
         }
         .back-feed-link:hover { color: var(--accent-gold); border-color: var(--border-focus); }
+        .logout-btn:hover { color: #ff8a80 !important; border-color: rgba(211, 47, 47, 0.4) !important; }
 
         /* Content */
         .admin-content { margin-top: 32px; margin-bottom: 64px; }
