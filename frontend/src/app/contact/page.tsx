@@ -63,7 +63,7 @@ export default function ContactPage() {
               <span className="info-icon">📧</span>
               <div>
                 <h4>Support Email</h4>
-                <p>support@lawaggregator.gov.pk</p>
+                <p>romangray197@gmail.com</p>
               </div>
             </div>
 
